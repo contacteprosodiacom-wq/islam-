@@ -1,0 +1,59 @@
+@import url('https://fonts.googleapis.com/css2?family=Amiri:ital,wght@0,400;0,700;1,400;1,700&family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&family=Playfair+Display:ital,wght@0,400..900;1,400..900&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "DM Sans", "Inter", system-ui, sans-serif;
+  --font-serif: "Playfair Display", Georgia, serif;
+  --font-amiri: "Amiri", serif;
+
+  --color-cream-main: #FAF7F0;
+  --color-cream-sec: #F0EAD6;
+  --color-emerald-main: #1B4332;
+  --color-emerald-med: #2D6A4F;
+  --color-emerald-light: #40916C;
+  --color-gold-main: #C9A84C;
+  --color-gold-light: #E8C97A;
+  --color-gold-dark: #8B6914;
+  --color-ink: #1A1209;
+  --color-text-sec: #7C6F5B;
+  --color-red-urge: #991B1B;
+}
+
+@layer base {
+  body {
+    background-color: var(--color-cream-main);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+  }
+}
+
+/* Custom background pattern */
+.islamic-pattern {
+  background-image: radial-gradient(circle at 1px 1px, rgba(201,168,76,0.06) 1px, transparent 0);
+  background-size: 24px 24px;
+}
+
+@keyframes barGrow {
+  0% { width: 0%; }
+  100% { width: 72%; }
+}
+
+.animate-bar-grow {
+  animation: barGrow 2s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+/* Scrollbar customization */
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #1A1209;
+}
+::-webkit-scrollbar-thumb {
+  background: #C9A84C;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #E8C97A;
+}
+

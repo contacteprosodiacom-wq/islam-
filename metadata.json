@@ -1,0 +1,6 @@
+{
+  "name": "Islam avec Aboubakar",
+  "description": "Plateforme islamique éducative multilingue complète comprenant le Noble Coran, l'étude des Hadiths authentiques, les horaires de prières et la Qibla, des biographies des Prophètes, des quiz interactifs et un Escape Game spirituel.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
