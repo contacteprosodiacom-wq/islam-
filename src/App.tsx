@@ -33,7 +33,14 @@ export default function App() {
   // Synced hash navigation wrapper for browser backward/forward support
   useEffect(() => {
     const handleHashChange = () => {
+      const pathname = window.location.pathname.replace(/^\/+|\/+$/g, '');
       const hash = window.location.hash.substring(1);
+
+      if (pathname === 'admin' || hash === 'admin' || hash.startsWith('admin?')) {
+        setCurrentRoute('admin');
+        return;
+      }
+
       if (hash) {
         // Simple hash router query (e.g., #coran?reciterId=al-afasy)
         const [routeStr, paramStr] = hash.split('?');

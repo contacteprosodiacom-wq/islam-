@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Menu, X, Landmark, Heart, Languages, ArrowRight } from 'lucide-react';
+import { Menu, X, Landmark, Heart, Languages, ArrowRight, Lock } from 'lucide-react';
 import { Language, Route } from '../types';
 import { translations } from '../data/translations';
 import { useContentStore } from '../lib/content-store';
@@ -36,8 +36,7 @@ export default function Navbar({ lang, onLangChange, currentRoute, onNavigate }:
     { id: 'videos', label: t.navVideos },
     { id: 'quiz', label: t.navQuiz },
     { id: 'contact', label: t.navContact },
-    { id: 'about', label: t.navAbout },
-    { id: 'admin', label: lang === 'ar' ? 'الإدارة' : 'Admin' }
+    { id: 'about', label: t.navAbout }
   ];
 
   const handleLinkClick = (id: Route) => {
@@ -121,6 +120,21 @@ export default function Navbar({ lang, onLangChange, currentRoute, onNavigate }:
             </button>
           </div>
 
+          {/* Admin shortcut button */}
+          <button
+            id="nav-admin-btn"
+            onClick={() => handleLinkClick('admin')}
+            className={`px-2.5 py-1.5 rounded-xl border text-xs flex items-center gap-1.5 transition-all cursor-pointer focus:outline-none ${
+              currentRoute === 'admin'
+                ? 'bg-gold-main text-ink border-gold-main font-bold shadow-md'
+                : 'bg-[#1A1209] border-gold-main/20 text-gold-main/80 hover:text-gold-main hover:border-gold-main/50'
+            }`}
+            title="Espace Administrateur"
+          >
+            <Lock className="w-3.5 h-3.5 text-gold-main" />
+            <span className="hidden lg:inline text-[11px] font-semibold tracking-wide">Admin</span>
+          </button>
+
           {/* Toggle Burger on mobile */}
           <button
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
@@ -151,6 +165,15 @@ export default function Navbar({ lang, onLangChange, currentRoute, onNavigate }:
               </button>
             );
           })}
+
+          <button
+            id="mobile-admin-btn"
+            onClick={() => handleLinkClick('admin')}
+            className="text-sm font-semibold uppercase tracking-wider text-left py-2.5 border-b border-gold-main/30 text-gold-main flex items-center gap-2 mt-2"
+          >
+            <Lock className="w-4 h-4 text-gold-main" />
+            <span>Espace Administration</span>
+          </button>
         </div>
       )}
 

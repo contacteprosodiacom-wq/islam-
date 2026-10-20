@@ -1,0 +1,186 @@
+{
+  "entities": {
+    "user": {
+      "title": "User",
+      "description": "User profile with administrative RBAC roles and security metadata",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string", "format": "email", "description": "User email address" },
+        "displayName": { "type": "string", "description": "Display name of the user" },
+        "role": { "type": "string", "enum": ["admin", "editeur", "membre"], "description": "Access control role" },
+        "twoFactorEnabled": { "type": "boolean", "description": "Whether 2FA is activated for this account" },
+        "emailVerified": { "type": "boolean", "description": "Whether user email has been validated via Firebase Auth" },
+        "createdAt": { "type": "string", "description": "ISO timestamp of user creation" },
+        "lastLoginAt": { "type": "string", "description": "ISO timestamp of last login" },
+        "status": { "type": "string", "enum": ["active", "suspended"], "description": "Account status" }
+      },
+      "required": ["email", "role"]
+    },
+    "article": {
+      "title": "Article",
+      "description": "Blog article with rich content, review tracking, scheduling and SEO metadata",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string", "description": "Article headline title" },
+        "slug": { "type": "string", "description": "URL slug for the article" },
+        "excerpt": { "type": "string", "description": "Brief summary preview" },
+        "content": { "type": "string", "description": "Article rich HTML or Markdown content" },
+        "category": { "type": "string", "description": "Article thematic category" },
+        "coverImage": { "type": "string", "description": "URL to cover banner image" },
+        "author": { "type": "string", "description": "Author name" },
+        "reviewer": { "type": "string", "description": "Relu par (editor or scholar reviewer)" },
+        "status": { "type": "string", "enum": ["brouillon", "publie", "programme"], "description": "Publication state" },
+        "scheduledAt": { "type": "string", "description": "Optional scheduled publication timestamp" },
+        "metaTitle": { "type": "string", "description": "Custom SEO meta title" },
+        "metaDescription": { "type": "string", "description": "Custom SEO meta description" },
+        "ogImage": { "type": "string", "description": "OpenGraph image URL for social shares" },
+        "viewsCount": { "type": "number", "description": "Total reader views count" },
+        "isDeleted": { "type": "boolean", "description": "Whether the article is moved to trash" },
+        "createdAt": { "type": "string", "description": "ISO creation timestamp" },
+        "updatedAt": { "type": "string", "description": "ISO last modification timestamp" }
+      },
+      "required": ["title", "slug", "content", "status"]
+    },
+    "article_version": {
+      "title": "ArticleVersion",
+      "description": "Historical snapshot of an article for version rollback",
+      "type": "object",
+      "properties": {
+        "articleId": { "type": "string", "description": "Reference ID of the parent article" },
+        "versionNumber": { "type": "number", "description": "Sequential revision number" },
+        "title": { "type": "string", "description": "Archived article title" },
+        "content": { "type": "string", "description": "Archived article content" },
+        "excerpt": { "type": "string", "description": "Archived article excerpt" },
+        "savedBy": { "type": "string", "description": "Email or ID of the user who made the save" },
+        "createdAt": { "type": "string", "description": "ISO timestamp of version snapshot" }
+      },
+      "required": ["articleId", "versionNumber", "title", "content", "createdAt"]
+    },
+    "audit_log": {
+      "title": "AuditLog",
+      "description": "Immutable audit record for tracking every administrative operation",
+      "type": "object",
+      "properties": {
+        "timestamp": { "type": "string", "description": "ISO timestamp when action occurred" },
+        "userEmail": { "type": "string", "description": "Operator email address" },
+        "userRole": { "type": "string", "description": "Operator role at time of action" },
+        "action": { "type": "string", "description": "Action descriptor code (e.g., ARTICLE_CREATE, LOGIN_SUCCESS)" },
+        "targetCollection": { "type": "string", "description": "Target entity collection affected" },
+        "targetId": { "type": "string", "description": "Document ID affected" },
+        "details": { "type": "string", "description": "Human-readable summary or JSON diff" },
+        "ipAddress": { "type": "string", "description": "Client IP address" },
+        "userAgent": { "type": "string", "description": "Client browser/device signature" }
+      },
+      "required": ["timestamp", "userEmail", "action"]
+    },
+    "trash_item": {
+      "title": "TrashItem",
+      "description": "Temporary bin item stored for 30 days before permanent deletion",
+      "type": "object",
+      "properties": {
+        "originalCollection": { "type": "string", "description": "Collection where the item originated" },
+        "originalId": { "type": "string", "description": "Original document identifier" },
+        "originalData": { "type": "string", "description": "Serialized JSON snapshot of item" },
+        "deletedBy": { "type": "string", "description": "Email of user who deleted the item" },
+        "deletedAt": { "type": "string", "description": "ISO timestamp of deletion" },
+        "expiresAt": { "type": "string", "description": "ISO timestamp when item can be purged" }
+      },
+      "required": ["originalCollection", "originalId", "deletedBy", "deletedAt"]
+    },
+    "site_setting": {
+      "title": "SiteSetting",
+      "description": "Global website configuration settings managed by administrator",
+      "type": "object",
+      "properties": {
+        "siteName": { "type": "string", "description": "Public website brand name" },
+        "slogan": { "type": "string", "description": "Brand tagline slogan" },
+        "contactEmail": { "type": "string", "description": "Public contact email" },
+        "youtubeUrl": { "type": "string", "description": "YouTube channel URL" },
+        "whatsappUrl": { "type": "string", "description": "WhatsApp community / contact link" },
+        "accentColor": { "type": "string", "description": "Primary accent theme hex" },
+        "statsJson": { "type": "string", "description": "Key numbers displayed on home banner" },
+        "updatedAt": { "type": "string", "description": "Last updated timestamp" }
+      },
+      "required": ["siteName"]
+    },
+    "donation": {
+      "title": "Donation",
+      "description": "Individual charity donation record with project and donor attribution",
+      "type": "object",
+      "properties": {
+        "donorName": { "type": "string", "description": "Name or pseudonym of donor" },
+        "donorEmail": { "type": "string", "description": "Donor email address" },
+        "amount": { "type": "number", "description": "Contribution amount in EUR" },
+        "project": { "type": "string", "description": "Target humanitarian or religious project" },
+        "paymentStatus": { "type": "string", "enum": ["completed", "pending", "failed"], "description": "Payment transaction status" },
+        "createdAt": { "type": "string", "description": "ISO creation timestamp" }
+      },
+      "required": ["amount", "project"]
+    },
+    "donation_campaign": {
+      "title": "DonationCampaign",
+      "description": "Target charity campaign with goal and collected metrics",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string", "description": "Campaign title" },
+        "target": { "type": "number", "description": "Target goal in EUR" },
+        "collected": { "type": "number", "description": "Total amount raised in EUR" },
+        "donorsCount": { "type": "number", "description": "Number of unique donors" },
+        "updatedAt": { "type": "string", "description": "Last updated timestamp" }
+      },
+      "required": ["title", "target", "collected"]
+    },
+    "engagement_metric": {
+      "title": "EngagementMetric",
+      "description": "Aggregated daily user engagement metrics for Quran, articles, quizzes and visits",
+      "type": "object",
+      "properties": {
+        "date": { "type": "string", "description": "Date YYYY-MM-DD" },
+        "visits": { "type": "number", "description": "Total daily unique visitors" },
+        "pageViews": { "type": "number", "description": "Total page views count" },
+        "quranListens": { "type": "number", "description": "Audio Quran recitations played" },
+        "quizCompletions": { "type": "number", "description": "Interactive quizzes taken" },
+        "articleReads": { "type": "number", "description": "Blog and tafsir articles read" }
+      },
+      "required": ["date", "visits", "pageViews"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/user" },
+      "description": "User profiles with role-based access information"
+    },
+    "/articles/{articleId}": {
+      "schema": { "$ref": "#/entities/article" },
+      "description": "Blog articles with review and publication workflow"
+    },
+    "/articles/{articleId}/versions/{versionId}": {
+      "schema": { "$ref": "#/entities/article_version" },
+      "description": "Revision history versions for blog articles"
+    },
+    "/audit_logs/{logId}": {
+      "schema": { "$ref": "#/entities/audit_log" },
+      "description": "Append-only immutable administrative audit trails"
+    },
+    "/trash_items/{trashId}": {
+      "schema": { "$ref": "#/entities/trash_item" },
+      "description": "Soft-deleted documents waiting for recovery or 30-day purge"
+    },
+    "/site_settings/{settingId}": {
+      "schema": { "$ref": "#/entities/site_setting" },
+      "description": "Global configurable site options"
+    },
+    "/donations/{donationId}": {
+      "schema": { "$ref": "#/entities/donation" },
+      "description": "Charity donations records"
+    },
+    "/donation_campaigns/{campaignId}": {
+      "schema": { "$ref": "#/entities/donation_campaign" },
+      "description": "Fundraising campaign goals and progress"
+    },
+    "/engagement_metrics/{metricId}": {
+      "schema": { "$ref": "#/entities/engagement_metric" },
+      "description": "Daily engagement analytics over time"
+    }
+  }
+}

@@ -1,0 +1,99 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper functions enforcing strict email validation and RBAC
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isEmailVerified() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isAuthorizedAdmin() {
+      return isEmailVerified() && (
+        request.auth.token.email == 'contacteprosodiacom@gmail.com' ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin')
+      );
+    }
+
+    function isOwner(userId) {
+      return isEmailVerified() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    // 1. Users collection (Contains sensitive PII - email, name, role)
+    // Protected by email validation to prevent unauthorized access
+    match /users/{userId} {
+      // Read access strictly restricted to owner or verified admin (Zero-trust PII isolation)
+      allow read: if isOwner(userId) || isAuthorizedAdmin();
+      
+      // Writes strictly restricted to verified admin or user creating their own verified profile
+      allow create: if isAuthorizedAdmin() || (isOwner(userId) && request.resource.data.email == request.auth.token.email);
+      allow update: if isAuthorizedAdmin() || (isOwner(userId) && request.resource.data.email == resource.data.email);
+      allow delete: if isAuthorizedAdmin();
+    }
+
+    // 2. Audit logs collection (Append-only immutable audit trail)
+    match /audit_logs/{logId} {
+      // Read access strictly restricted to verified admin (protects personal operator metadata)
+      allow read: if isAuthorizedAdmin();
+      // Allow authenticated or server events creation
+      allow create: if true;
+      // Strictly immutable: cannot be modified or deleted
+      allow update, delete: if false;
+    }
+
+    // 3. Articles collection (Public reading, verified admin modification)
+    match /articles/{articleId} {
+      allow read: if true;
+      allow write: if isAuthorizedAdmin();
+
+      match /versions/{versionId} {
+        allow read, write: if isAuthorizedAdmin();
+      }
+    }
+
+    // 4. Trash items collection
+    match /trash_items/{trashId} {
+      allow read, write: if isAuthorizedAdmin();
+    }
+
+    // 5. Site settings collection
+    match /site_settings/{settingId} {
+      allow read: if true;
+      allow write: if isAuthorizedAdmin();
+    }
+
+    // 6. Donations collection (Contains donor names and emails - PII protection!)
+    match /donations/{donationId} {
+      // Read restricted to verified admin to protect donor personal data
+      allow read: if isAuthorizedAdmin();
+      // Allow public creation for donor contributions
+      allow create: if true;
+      allow update, delete: if isAuthorizedAdmin();
+    }
+
+    // 7. Donation Campaigns collection
+    match /donation_campaigns/{campaignId} {
+      allow read: if true;
+      allow write: if isAuthorizedAdmin();
+    }
+
+    // 8. Engagement metrics collection
+    match /engagement_metrics/{metricId} {
+      allow read: if true;
+      allow write: if isAuthorizedAdmin();
+    }
+
+    // Global Catch-all Deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

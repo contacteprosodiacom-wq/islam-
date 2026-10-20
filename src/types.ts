@@ -139,3 +139,100 @@ export interface DonationCampagne {
   donorsCount: number;
   lastUpdate: string;
 }
+
+// RBAC and Administrative types
+export type UserRole = 'admin' | 'editeur' | 'membre';
+
+export interface AdminUser {
+  id: string;
+  email: string;
+  displayName: string;
+  role: UserRole;
+  twoFactorEnabled: boolean;
+  emailVerified?: boolean;
+  createdAt: string;
+  lastLoginAt?: string;
+  status: 'active' | 'suspended';
+}
+
+export interface AuditLog {
+  id: string;
+  timestamp: string;
+  userEmail: string;
+  userRole: UserRole;
+  action: string;
+  targetCollection: string;
+  targetId: string;
+  details: string;
+  ipAddress?: string;
+  userAgent?: string;
+}
+
+export interface TrashItem {
+  id: string;
+  originalCollection: string;
+  originalId: string;
+  originalData: string;
+  deletedBy: string;
+  deletedAt: string;
+  expiresAt: string;
+  title?: string;
+}
+
+export interface ArticleVersion {
+  id: string;
+  articleId: string;
+  versionNumber: number;
+  title: string;
+  content: string;
+  excerpt: string;
+  savedBy: string;
+  createdAt: string;
+}
+
+export interface AdminArticleItem {
+  id: string;
+  title: string;
+  slug: string;
+  excerpt: string;
+  content: string;
+  category: string;
+  coverImage: string;
+  author: string;
+  reviewer: string;
+  status: 'brouillon' | 'publie' | 'programme';
+  scheduledAt?: string;
+  metaTitle?: string;
+  metaDescription?: string;
+  ogImage?: string;
+  viewsCount: number;
+  isDeleted?: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface LoginAttemptRecord {
+  ip: string;
+  attempts: number;
+  lockedUntil?: number;
+}
+
+export interface EngagementMetric {
+  id?: string;
+  date: string;
+  visits: number;
+  pageViews: number;
+  quranListens: number;
+  quizCompletions: number;
+  articleReads: number;
+}
+
+export interface FirestoreDonation {
+  id?: string;
+  donorName: string;
+  donorEmail?: string;
+  amount: number;
+  project: string;
+  paymentStatus: 'completed' | 'pending' | 'failed';
+  createdAt: string;
+}

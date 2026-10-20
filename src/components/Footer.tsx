@@ -146,10 +146,20 @@ export default function Footer({ lang, onNavigate }: FooterProps) {
         <p className={isAr ? 'text-right' : 'text-left'}>
           {t.footerRights}
         </p>
-        <div className="flex gap-4">
+        <div className="flex items-center flex-wrap gap-4">
           <a href="#" className="hover:text-gold-light">Mentions légales</a>
           <span>•</span>
           <a href="#" className="hover:text-gold-light">Politique de confidentialité</a>
+          <span>•</span>
+          <button
+            id="footer-admin-btn"
+            onClick={() => onNavigate('admin')}
+            className="hover:text-gold-main text-gold-main/80 hover:underline flex items-center gap-1.5 transition-colors cursor-pointer font-sans text-xs font-semibold"
+            title="Accéder au portail d'administration sécurisé"
+          >
+            <span>🔐</span>
+            <span>Espace Administration</span>
+          </button>
         </div>
       </div>
 
