@@ -1,9 +1,12 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Award, HelpCircle, ArrowLeft, RotateCcw, CheckCircle2, AlertCircle, BookOpen, ChevronRight, Activity } from 'lucide-react';
+import { Award, HelpCircle, ArrowLeft, RotateCcw, CheckCircle2, AlertCircle, BookOpen, ChevronRight, Activity, Sparkles, Star } from 'lucide-react';
 import { Language, Quiz as QuizType, QuizQuestion } from '../types';
 import { translations } from '../data/translations';
 import { useContentStore } from '../lib/content-store';
+import QuizProgressBar from '../components/QuizProgressBar';
+import QuizConfetti from '../components/QuizConfetti';
+import KidsQuizSystem from '../components/KidsQuizSystem';
 
 interface QuizProps {
   lang: Language;
@@ -14,6 +17,11 @@ export default function Quiz({ lang, preselectedQuizId }: QuizProps) {
   const { quizzes: quizList } = useContentStore();
   const t = translations[lang];
   const isAr = lang === 'ar';
+
+  // Mode state: 'standard' or 'kids'
+  const [quizMode, setQuizMode] = useState<'standard' | 'kids'>(() => {
+    return preselectedQuizId === 'kids' ? 'kids' : 'standard';
+  });
 
   // Game state
   const [activeQuiz, setActiveQuiz] = useState<QuizType | null>(null);
@@ -28,9 +36,15 @@ export default function Quiz({ lang, preselectedQuizId }: QuizProps) {
 
   // Handle deep linking from Home preview
   useEffect(() => {
+    if (preselectedQuizId === 'kids') {
+      setQuizMode('kids');
+      setActiveQuiz(null);
+      return;
+    }
     if (preselectedQuizId && quizList && quizList.length > 0) {
       const match = quizList.find(q => q.id === preselectedQuizId);
       if (match) {
+        setQuizMode('standard');
         startQuiz(match);
       }
     }
@@ -120,6 +134,39 @@ export default function Quiz({ lang, preselectedQuizId }: QuizProps) {
 
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         
+        {/* MODE SELECTOR (Standard vs Kids Academy) */}
+        {!activeQuiz && (
+          <div className="flex justify-center mb-8">
+            <div className={`inline-flex p-1.5 bg-white border border-gray-100 rounded-2xl shadow-sm gap-2 ${isAr ? 'flex-row-reverse' : ''}`}>
+              <button
+                type="button"
+                onClick={() => setQuizMode('standard')}
+                className={`px-4 sm:px-6 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center gap-2 cursor-pointer ${
+                  quizMode === 'standard'
+                    ? 'bg-ink text-gold-main shadow-sm'
+                    : 'text-text-sec hover:text-ink'
+                }`}
+              >
+                <span>📖</span>
+                <span>{lang === 'ar' ? 'مسابقات عامة للعائلة' : lang === 'en' ? 'Family & General Quiz' : 'Quiz Général & Famille'}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setQuizMode('kids')}
+                className={`px-4 sm:px-6 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center gap-2 cursor-pointer ${
+                  quizMode === 'kids'
+                    ? 'bg-gradient-to-r from-emerald-main to-emerald-med text-white shadow-sm ring-2 ring-emerald-main/20'
+                    : 'text-emerald-med hover:text-emerald-main font-semibold'
+                }`}
+              >
+                <span>🌟</span>
+                <span>{lang === 'ar' ? 'واحة الأطفال والبراعم (شارات)' : lang === 'en' ? 'Kids Academy (Badges & Stars)' : 'Espace Enfants (Badges & Étoiles)'}</span>
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* ACTIVE GAME FRAMEPLAY PANEL */}
         {activeQuiz ? (
           <div>
@@ -142,64 +189,119 @@ export default function Quiz({ lang, preselectedQuizId }: QuizProps) {
             </div>
 
             {showResults ? (
-              /* RESULTS SCORE CARD VIEW */
-              <motion.div
-                initial={{ opacity: 0, scale: 0.98 }}
-                animate={{ opacity: 1, scale: 1 }}
-                className="bg-white rounded-3xl border border-gray-100 shadow-xl p-8 sm:p-12 text-center space-y-6"
-              >
-                <div className="w-20 h-20 bg-gold-main/10 rounded-full flex items-center justify-center mx-auto border border-gold-main/30">
-                  <Award className="w-10 h-10 text-gold-dark" />
-                </div>
+              /* RESULTS SCORE CARD VIEW WITH CELEBRATORY CSS CONFETTI */
+              <>
+                {/* CSS Confetti Effect on completion */}
+                <QuizConfetti />
 
-                <div className="space-y-2">
-                  <h2 className="text-2xl sm:text-3xl font-serif font-bold text-ink">
-                    {t.quizCongrats}
-                  </h2>
-                  <p className="text-sm text-text-sec font-sans">
-                    {t.quizScore} <strong className="text-xl text-emerald-main font-mono">{score} / {activeQuiz.questions.length}</strong>
-                  </p>
-                </div>
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.95, y: 15 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+                  className="relative bg-white rounded-3xl border border-gold-main/30 shadow-2xl p-8 sm:p-12 text-center space-y-6 overflow-hidden z-10"
+                >
+                  {/* Decorative glowing background nuances */}
+                  <div className="absolute top-0 right-1/2 translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-gold-main/15 rounded-full blur-3xl pointer-events-none" />
+                  
+                  {/* Floating Trophy / Badge with Sparkles */}
+                  <div className="relative inline-block">
+                    <motion.div 
+                      initial={{ scale: 0 }}
+                      animate={{ scale: 1 }}
+                      transition={{ type: 'spring', delay: 0.15 }}
+                      className="w-24 h-24 bg-gradient-to-br from-gold-main/20 via-emerald-950/30 to-gold-main/30 rounded-full flex items-center justify-center mx-auto border-2 border-gold-main shadow-lg"
+                    >
+                      <Award className="w-12 h-12 text-gold-dark animate-pulse" />
+                    </motion.div>
+                    <span className="absolute -top-1 -right-1 text-gold-main animate-bounce">
+                      <Sparkles className="w-6 h-6 fill-current" />
+                    </span>
+                  </div>
 
-                {/* Progress Circle visual bar */}
-                <div className="max-w-[240px] mx-auto bg-cream-main/40 border border-gray-100 rounded-2xl p-4 text-xs text-text-sec leading-relaxed italic">
-                  🌿 {lang === 'fr' ? '« Celui qui emprunte un chemin par lequel il recherche une science, Allah lui facilite un chemin vers le Paradis » — Hadith authentique' : lang === 'en' ? '“Whoever takes a path in search of knowledge, Allah will make a path to Paradise easy for him” — Authentic Hadith' : '« مَنْ سَلَكَ طَرِيقًا يَلْتَمِسُ فِيهِ عِلْمًا سَهَّلَ اللَّهُ لَهُ طَرِيقًا إِلَى الْجَنَّةِ »'}
-                </div>
+                  {/* Congratulatory Headlines */}
+                  <div className="space-y-2">
+                    <span className="inline-block px-3 py-1 rounded-full bg-emerald-main/10 text-emerald-med border border-emerald-main/20 text-xs font-mono font-bold uppercase tracking-wider">
+                      {lang === 'ar' ? '🎉 تم إكمال الاختبار بنجاح' : lang === 'en' ? '🎉 Quiz Completed Successfully' : '🎉 Félicitations ! Quiz Complété'}
+                    </span>
+                    <h2 className="text-2xl sm:text-4xl font-serif font-bold text-ink tracking-tight">
+                      {score === activeQuiz.questions.length
+                        ? (lang === 'ar' ? 'ما شاء الله ! علامة كاملة' : lang === 'en' ? 'Māshā’Allāh! Perfect Score' : 'Māshā’Allāh ! Score Parfait')
+                        : score >= Math.ceil(activeQuiz.questions.length * 0.7)
+                          ? (lang === 'ar' ? 'إنجاز ممتاز ومبارك !' : lang === 'en' ? 'Excellent Work!' : 'Excellent travail !')
+                          : (lang === 'ar' ? 'جهد طيب، استمر في التعلم !' : lang === 'en' ? 'Good effort, keep learning!' : 'Bel effort, continuez à apprendre !')}
+                    </h2>
+                    <p className="text-sm text-text-sec font-sans max-w-lg mx-auto">
+                      {score === activeQuiz.questions.length
+                        ? (lang === 'ar' ? 'أحسنت صنعاً، لقد أجبت على جميع الأسئلة بصورة صحيحة. بارك الله في علمك.' : lang === 'en' ? 'Brilliant! You mastered every question in this quiz with full accuracy.' : 'Magnifique ! Vous avez répondu avec brio à l’ensemble des questions de ce quiz.')
+                        : (lang === 'ar' ? 'طلب العلم مسيرة مباركة لا تنتهي. راجع تفاصيل الأسئلة لتعزيز معلوماتك.' : lang === 'en' ? 'Seeking knowledge is a continuous noble journey. Keep refining your understanding.' : 'Chaque question est une occasion d’enrichir votre savoir et votre compréhension de l’Islam.')}
+                    </p>
+                  </div>
 
-                <div className="flex flex-col sm:flex-row gap-3 justify-center pt-4">
-                  <button
-                    onClick={restartActiveQuiz}
-                    className="px-6 py-3 bg-gold-main hover:bg-gold-light active:bg-gold-dark text-ink font-bold text-sm rounded-xl flex items-center justify-center gap-2 cursor-pointer shadow transition-all"
-                  >
-                    <RotateCcw className="w-4 h-4" />
-                    {t.quizRestart}
-                  </button>
-                  <button
-                    onClick={exitQuizGame}
-                    className="px-6 py-3 border border-gray-200 hover:bg-cream-main text-ink font-bold text-sm rounded-xl cursor-pointer transition-all"
-                  >
-                    {lang === 'fr' ? 'Retourner aux quiz' : lang === 'en' ? 'Back to list' : 'الرجوع ومسابقات أخرى'}
-                  </button>
-                </div>
+                  {/* Summary Metric Badges */}
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 max-w-md mx-auto pt-2">
+                    <div className="bg-cream-main/60 border border-gray-100 p-3.5 rounded-2xl">
+                      <p className="text-xs text-text-sec font-sans">{lang === 'ar' ? 'الدرجة' : 'Score'}</p>
+                      <p className="text-2xl font-mono font-bold text-emerald-main mt-0.5">
+                        {score} <span className="text-sm text-text-sec font-normal">/ {activeQuiz.questions.length}</span>
+                      </p>
+                    </div>
 
-              </motion.div>
+                    <div className="bg-cream-main/60 border border-gray-100 p-3.5 rounded-2xl">
+                      <p className="text-xs text-text-sec font-sans">{lang === 'ar' ? 'النسبة' : 'Précision'}</p>
+                      <p className="text-2xl font-mono font-bold text-gold-dark mt-0.5">
+                        {Math.round((score / activeQuiz.questions.length) * 100)}%
+                      </p>
+                    </div>
+
+                    <div className="col-span-2 sm:col-span-1 bg-cream-main/60 border border-gray-100 p-3.5 rounded-2xl">
+                      <p className="text-xs text-text-sec font-sans">{lang === 'ar' ? 'الأسئلة' : 'Total'}</p>
+                      <p className="text-2xl font-mono font-bold text-ink mt-0.5">
+                        {activeQuiz.questions.length} <span className="text-xs text-text-sec font-normal">Q</span>
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Prophetic Wisdom Quote */}
+                  <div className="max-w-md mx-auto bg-cream-main/40 border border-gold-main/20 rounded-2xl p-4 text-xs text-text-sec leading-relaxed italic shadow-inner">
+                    🌿 {lang === 'fr' 
+                        ? '« Celui qui emprunte un chemin par lequel il recherche une science, Allah lui facilite un chemin vers le Paradis » — Hadith authentique' 
+                        : lang === 'en' 
+                          ? '“Whoever takes a path in search of knowledge, Allah will make a path to Paradise easy for him” — Authentic Hadith' 
+                          : '« مَنْ سَلَكَ طَرِيقًا يَلْتَمِسُ فِيهِ عِلْمًا سَهَّلَ اللَّهُ لَهُ طَرِيقًا إِلَى الْجَنَّةِ »'}
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div className="flex flex-col sm:flex-row gap-3 justify-center pt-2">
+                    <button
+                      type="button"
+                      onClick={restartActiveQuiz}
+                      className="px-6 py-3 bg-gradient-to-r from-gold-main to-gold-light hover:from-gold-light hover:to-gold-main text-ink font-bold text-sm rounded-xl flex items-center justify-center gap-2 cursor-pointer shadow-md transition-all active:scale-95"
+                    >
+                      <RotateCcw className="w-4 h-4" />
+                      <span>{t.quizRestart}</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={exitQuizGame}
+                      className="px-6 py-3 border border-gray-200 hover:bg-cream-main text-ink font-bold text-sm rounded-xl cursor-pointer transition-all active:scale-95"
+                    >
+                      <span>{lang === 'fr' ? 'Retourner aux quiz' : lang === 'en' ? 'Back to list' : 'الرجوع ومسابقات أخرى'}</span>
+                    </button>
+                  </div>
+
+                </motion.div>
+              </>
             ) : (
               /* ACTIVE QUESTION FRAME */
               <div className="bg-white rounded-3xl border border-gray-100 shadow-xl p-6 sm:p-8 space-y-6">
                 
-                {/* Progress bar info header */}
-                <div className="space-y-2">
-                  <div className="flex justify-between items-center text-xs font-mono text-text-sec uppercase font-bold">
-                    <span>{lang === 'fr' ? `Question ${currentIdx + 1} sur ${activeQuiz.questions.length}` : lang === 'en' ? `Question ${currentIdx + 1} of ${activeQuiz.questions.length}` : `السؤال ${currentIdx + 1} من أصل ${activeQuiz.questions.length}`}</span>
-                    <span>{Math.round(((currentIdx + 1) / activeQuiz.questions.length) * 100)}%</span>
-                  </div>
-                  <div className="w-full h-1.5 bg-gray-100 rounded-lg overflow-hidden">
-                    <div
-                      className="h-full bg-emerald-main rounded-lg transition-all duration-300"
-                      style={{ width: `${((currentIdx + 1) / activeQuiz.questions.length) * 100}%` }}
-                    ></div>
-                  </div>
-                </div>
+                {/* Visual Progress Bar with remaining questions counter */}
+                <QuizProgressBar
+                  currentIdx={currentIdx}
+                  totalQuestions={activeQuiz.questions.length}
+                  hasValidated={hasValidated}
+                  lang={lang}
+                />
 
                 {/* Main Question Label */}
                 {currentQuestion && (
@@ -291,6 +393,9 @@ export default function Quiz({ lang, preselectedQuizId }: QuizProps) {
             )}
 
           </div>
+        ) : quizMode === 'kids' ? (
+          /* KIDS ISLAMIC ACADEMY INTERACTIVE MODULES & BADGES */
+          <KidsQuizSystem lang={lang} />
         ) : (
           /* STANDARD QUIZ DISCOVERING LIST GRID */
           <div className="space-y-8">

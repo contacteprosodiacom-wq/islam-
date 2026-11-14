@@ -1,9 +1,14 @@
 import { motion } from 'motion/react';
-import { BookOpen, Heart, Play, HelpCircle, FileText, Music, ArrowRight, Video, Mail, Sparkles, CheckCircle2 } from 'lucide-react';
+import { BookOpen, Heart, Play, HelpCircle, FileText, Music, ArrowRight, Video, Mail, Sparkles, CheckCircle2, Calculator } from 'lucide-react';
 import { Language, Route, Reciter } from '../types';
 import { translations } from '../data/translations';
 import { useContentStore } from '../lib/content-store';
 import { useState, FormEvent } from 'react';
+import HijriCalendarWidget from '../components/HijriCalendarWidget';
+import IslamicGlossarySearch from '../components/IslamicGlossarySearch';
+import ResumeListeningSection from '../components/ResumeListeningSection';
+import { useQuranAudio } from '../lib/quran-audio-context';
+import { all114Surahs } from '../data/all-114-surahs';
 
 interface HomeProps {
   lang: Language;
@@ -14,6 +19,7 @@ interface HomeProps {
 
 export default function Home({ lang, onNavigate, onSubscribeNewsletter, hasSubscribed }: HomeProps) {
   const { articles: blogArticles, quizzes, reciters, donors } = useContentStore();
+  const { playSurah, currentReciter, isPlaying, togglePlay } = useQuranAudio();
   const t = translations[lang];
   const [newsEmail, setNewsEmail] = useState('');
 
@@ -48,6 +54,12 @@ export default function Home({ lang, onNavigate, onSubscribeNewsletter, hasSubsc
       icon: <Heart className="w-6 h-6 text-red-urge" />,
       title: t.featDonsTitle,
       desc: t.featDonsDesc,
+    },
+    {
+      id: 'zakat' as Route,
+      icon: <Calculator className="w-6 h-6 text-gold-main" />,
+      title: lang === 'ar' ? '⚖️ حاسبة زكاة المال' : lang === 'en' ? '⚖️ Zakat Calculator' : '⚖️ Calculateur de Zakat',
+      desc: lang === 'ar' ? 'احسب زكاة أموالك ومدخراتك بدقة وسهولة وفق نصاب الذهب والفضة والضوابط الشرعية.' : lang === 'en' ? 'Calculate your annual Zakat with exact Nisab thresholds, asset-debt balance, and fiqh rules.' : 'Estimez et calculez votre Zakat annuelle selon le seuil du Nissab et les règles islamiques.',
     },
     {
       id: 'quiz' as Route,
@@ -167,6 +179,17 @@ export default function Home({ lang, onNavigate, onSubscribeNewsletter, hasSubsc
         </div>
       </section>
 
+      {/* SECTION RECHERCHE GLOSSAIRE ISLAMIQUE RAPIDE */}
+      <div className="-mt-8 sm:-mt-10 relative z-20">
+        <IslamicGlossarySearch lang={lang} />
+      </div>
+
+      {/* SECTION CALENDRIER HIJRI DYNAMIQUE */}
+      <HijriCalendarWidget lang={lang} onNavigate={onNavigate} />
+
+      {/* SECTION REPRENDRE VOTRE ÉCOUTE (5 DERNIÈRES SOURATES) */}
+      <ResumeListeningSection lang={lang} onNavigate={onNavigate} />
+
       {/* SECTION FEATURES */}
       <section className="py-16 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-12">
@@ -255,33 +278,51 @@ export default function Home({ lang, onNavigate, onSubscribeNewsletter, hasSubsc
                   {t.recitersLabel} :
                 </p>
               </div>
-              {reciters.slice(0, 4).map((reciter) => (
-                <div
-                  key={reciter.id}
-                  className="bg-white/10 backdrop-blur-md border border-white/5 hover:border-gold-main/50 p-4 rounded-xl flex items-center justify-between group transition-all"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-gold-main text-ink font-serif font-bold text-sm flex items-center justify-center shadow-lg uppercase">
-                      {reciter.initials}
-                    </div>
-                    <div>
-                      <p className="text-xs sm:text-sm font-semibold text-white leading-tight font-serif">
-                        {reciter.name}
-                      </p>
-                      <p className="text-[11px] text-gold-light font-amiri" dir="rtl">
-                        {reciter.localName}
-                      </p>
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => onNavigate('coran', { reciterId: reciter.id })}
-                    className="w-8 h-8 rounded-full bg-gold-main hover:bg-gold-light text-ink flex items-center justify-center transition-all shadow"
-                    title={t.playAudio}
+              {reciters.slice(0, 4).map((reciter) => {
+                const isThisReciterPlaying = currentReciter.id === reciter.id && isPlaying;
+                return (
+                  <div
+                    key={reciter.id}
+                    className="bg-white/10 backdrop-blur-md border border-white/5 hover:border-gold-main/50 p-4 rounded-xl flex items-center justify-between group transition-all"
                   >
-                    <Play className="w-4 h-4 fill-ink pl-0.5" />
-                  </button>
-                </div>
-              ))}
+                    <div 
+                      className="flex items-center gap-3 cursor-pointer"
+                      onClick={() => onNavigate('coran', { reciterId: reciter.id })}
+                    >
+                      <div className="w-10 h-10 rounded-full bg-gold-main text-ink font-serif font-bold text-sm flex items-center justify-center shadow-lg uppercase shrink-0">
+                        {reciter.initials}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-xs sm:text-sm font-semibold text-white leading-tight font-serif truncate">
+                          {reciter.name}
+                        </p>
+                        <p className="text-[11px] text-gold-light font-amiri truncate" dir="rtl">
+                          {reciter.localName}
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (isThisReciterPlaying) {
+                          togglePlay();
+                        } else {
+                          playSurah(all114Surahs[0], reciter);
+                        }
+                      }}
+                      className="w-9 h-9 rounded-full bg-gold-main hover:bg-gold-light text-ink flex items-center justify-center transition-all shadow-md shrink-0 cursor-pointer active:scale-95"
+                      title={isThisReciterPlaying ? t.pauseAudio : t.playAudio}
+                      aria-label={isThisReciterPlaying ? t.pauseAudio : t.playAudio}
+                    >
+                      {isThisReciterPlaying ? (
+                        <span className="w-3.5 h-3.5 flex items-center justify-center font-bold">❚❚</span>
+                      ) : (
+                        <Play className="w-4 h-4 fill-ink pl-0.5" />
+                      )}
+                    </button>
+                  </div>
+                );
+              })}
             </div>
 
           </div>
@@ -329,6 +370,39 @@ export default function Home({ lang, onNavigate, onSubscribeNewsletter, hasSubsc
                   </button>
                 </div>
               ))}
+            </div>
+
+            {/* Special Kids Academy Banner inside Quiz Preview */}
+            <div className={`bg-gradient-to-r from-emerald-950/90 to-ink border border-emerald-500/30 rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-lg ${
+              isAr ? 'sm:flex-row-reverse text-right' : ''
+            }`}>
+              <div className={`flex items-center gap-3.5 ${isAr ? 'flex-row-reverse' : ''}`}>
+                <div className="w-12 h-12 rounded-2xl bg-amber-400/20 text-amber-300 text-2xl flex items-center justify-center border border-amber-400/30 shrink-0">
+                  🌟
+                </div>
+                <div>
+                  <div className={`flex items-center gap-2 ${isAr ? 'flex-row-reverse' : ''}`}>
+                    <span className="text-[10px] font-mono font-bold uppercase text-emerald-300 bg-emerald-500/20 px-2 py-0.5 rounded">
+                      {lang === 'ar' ? 'جديد للأطفال' : lang === 'en' ? 'New for Kids' : 'Nouveau Enfants'}
+                    </span>
+                    <span className="text-[11px] text-gold-light">6-12 ans</span>
+                  </div>
+                  <h4 className="text-sm sm:text-base font-serif font-bold text-white mt-0.5">
+                    {lang === 'ar' ? 'أكاديمية براعم الإسلام والشارات' : lang === 'en' ? 'Kids Islamic Academy & Badges' : 'Académie des Petits Croyants & Badges'}
+                  </h4>
+                  <p className="text-xs text-gray-300">
+                    {lang === 'ar' ? 'موديولات تفاعلية لتعليم العقيدة والأخلاق مع أوسمة شرفية.' : '6 modules interactifs illustrés avec badges de progression et confettis !'}
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => onNavigate('quiz', { quizId: 'kids' })}
+                className="px-5 py-2.5 bg-gradient-to-r from-amber-400 to-yellow-500 hover:from-amber-300 hover:to-yellow-400 text-ink text-xs font-bold rounded-xl shadow-md transition-all shrink-0 cursor-pointer"
+              >
+                {lang === 'ar' ? 'دخول واحة البراعم ➔' : 'Espace Enfants ➔'}
+              </button>
             </div>
           </div>
         </div>

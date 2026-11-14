@@ -6,6 +6,9 @@ import { translations } from './data/translations';
 // Components
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
+import PersistentQuranPlayer from './components/PersistentQuranPlayer';
+import { QuranAudioProvider } from './lib/quran-audio-context';
+import { checkPrayerNotifications, loadNotificationSettings } from './lib/prayer-notification-service';
 
 // Pages
 import Home from './pages/Home';
@@ -22,6 +25,7 @@ import Videos from './pages/Videos';
 import Quiz from './pages/Quiz';
 import Contact from './pages/Contact';
 import About from './pages/About';
+import Zakat from './pages/Zakat';
 import Admin from './pages/Admin';
 
 export default function App() {
@@ -47,7 +51,7 @@ export default function App() {
         const r = routeStr as Route;
         
         // Validate route
-        const validRoutes: Route[] = ['home', 'coran', 'hadiths', 'prayers', 'prophets', 'islam', 'medias', 'dons', 'ebooks', 'blog', 'videos', 'quiz', 'contact', 'about', 'admin'];
+        const validRoutes: Route[] = ['home', 'coran', 'hadiths', 'prayers', 'prophets', 'islam', 'medias', 'dons', 'zakat', 'ebooks', 'blog', 'videos', 'quiz', 'contact', 'about', 'admin'];
         if (validRoutes.includes(r)) {
           setCurrentRoute(r);
           
@@ -88,6 +92,20 @@ export default function App() {
     } else {
       document.body.style.fontFamily = '"DM Sans", "Inter", sans-serif';
     }
+  }, [currentLang]);
+
+  // Periodic background check for prayer notifications
+  useEffect(() => {
+    const runCheck = () => {
+      const settings = loadNotificationSettings();
+      if (settings && settings.enabled) {
+        checkPrayerNotifications(settings, currentLang);
+      }
+    };
+
+    runCheck();
+    const interval = setInterval(runCheck, 30000);
+    return () => clearInterval(interval);
   }, [currentLang]);
 
   const handleNavigate = (route: Route, params?: any) => {
@@ -137,6 +155,7 @@ export default function App() {
           <Coran
             lang={currentLang}
             preselectedReciterId={navParams?.reciterId}
+            preselectedSurahNumber={navParams?.surahNumber}
           />
         );
       case 'hadiths':
@@ -154,10 +173,16 @@ export default function App() {
           <Dons
             lang={currentLang}
             onDonateSubmit={handleDonateSubmit}
+            resumeOrderId={navParams?.saspay_order || null}
           />
         );
       case 'ebooks':
-        return <Ebooks lang={currentLang} />;
+        return (
+          <Ebooks
+            lang={currentLang}
+            resumeOrderId={navParams?.saspay_order || null}
+          />
+        );
       case 'blog':
         return (
           <Blog
@@ -178,6 +203,8 @@ export default function App() {
         return <Contact lang={currentLang} />;
       case 'about':
         return <About lang={currentLang} />;
+      case 'zakat':
+        return <Zakat lang={currentLang} onNavigate={handleNavigate} />;
       default:
         return (
           <Home
@@ -195,37 +222,45 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col justify-between">
-      <div>
-        {/* Multilingual standard Navbar */}
-        <Navbar
+    <QuranAudioProvider>
+      <div className="min-h-screen flex flex-col justify-between">
+        <div>
+          {/* Multilingual standard Navbar */}
+          <Navbar
+            lang={currentLang}
+            onLangChange={handleLangChange}
+            currentRoute={currentRoute}
+            onNavigate={(r) => handleNavigate(r)}
+          />
+
+          {/* Animated Page Main viewport */}
+          <main className="flex-grow">
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={currentRoute + '-' + currentLang}
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -12 }}
+                transition={{ duration: 0.35, ease: 'easeInOut' }}
+              >
+                {renderPage()}
+              </motion.div>
+            </AnimatePresence>
+          </main>
+        </div>
+
+        {/* Multilingual standard Footer */}
+        <Footer
           lang={currentLang}
-          onLangChange={handleLangChange}
-          currentRoute={currentRoute}
           onNavigate={(r) => handleNavigate(r)}
         />
 
-        {/* Animated Page Main viewport */}
-        <main className="flex-grow">
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={currentRoute + '-' + currentLang}
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -12 }}
-              transition={{ duration: 0.35, ease: 'easeInOut' }}
-            >
-              {renderPage()}
-            </motion.div>
-          </AnimatePresence>
-        </main>
+        {/* Persistent bottom audio player for the Quran */}
+        <PersistentQuranPlayer
+          lang={currentLang}
+          onNavigate={handleNavigate}
+        />
       </div>
-
-      {/* Multilingual standard Footer */}
-      <Footer
-        lang={currentLang}
-        onNavigate={(r) => handleNavigate(r)}
-      />
-    </div>
+    </QuranAudioProvider>
   );
 }

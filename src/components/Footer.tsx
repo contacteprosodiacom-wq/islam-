@@ -14,6 +14,7 @@ export default function Footer({ lang, onNavigate }: FooterProps) {
     { label: t.navHome, id: 'home' },
     { label: t.navQuran, id: 'coran' },
     { label: t.navDons, id: 'dons' },
+    { label: t.navZakat, id: 'zakat' },
     { label: t.navEbooks, id: 'ebooks' },
     { label: t.navBlog, id: 'blog' },
     { label: t.navVideos, id: 'videos' },
@@ -21,6 +22,7 @@ export default function Footer({ lang, onNavigate }: FooterProps) {
   ];
 
   const columnsResources: { label: string; id: Route }[] = [
+    { label: t.navZakat, id: 'zakat' },
     { label: t.navEbooks, id: 'ebooks' },
     { label: t.navQuiz, id: 'quiz' },
     { label: t.navBlog, id: 'blog' },

@@ -1,15 +1,17 @@
 import { useState, useEffect, useRef, ChangeEvent } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Search, Play, Pause, Square, SkipBack, SkipForward, Volume2, RotateCcw, VolumeX, Eye, BookOpen, Sparkles, Loader, Music } from 'lucide-react';
+import { Search, Play, Pause, Square, SkipBack, SkipForward, Volume2, RotateCcw, VolumeX, Eye, BookOpen, Sparkles, Loader, Music, Heart } from 'lucide-react';
 import { Language, Reciter, Surah } from '../types';
 import { translations } from '../data/translations';
 import { all114Surahs as surahs } from '../data/all-114-surahs';
 import { useContentStore } from '../lib/content-store';
+import { useQuranAudio } from '../lib/quran-audio-context';
 import AudioProgressBar from '../components/AudioProgressBar';
 
 interface CoranProps {
   lang: Language;
   preselectedReciterId?: string | null;
+  preselectedSurahNumber?: number | string | null;
 }
 
 const everyAyahFolders: Record<string, string> = {
@@ -58,8 +60,9 @@ const backupSurahServers: Record<string, string[]> = {
   ]
 };
 
-export default function Coran({ lang, preselectedReciterId }: CoranProps) {
+export default function Coran({ lang, preselectedReciterId, preselectedSurahNumber }: CoranProps) {
   const { reciters, surahAudios } = useContentStore();
+  const quranAudio = useQuranAudio();
   const t = translations[lang];
   const isAr = lang === 'ar';
 
@@ -69,7 +72,8 @@ export default function Coran({ lang, preselectedReciterId }: CoranProps) {
   );
   const [selectedSurah, setSelectedSurah] = useState<Surah>(surahs[0]);
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterType, setFilterType] = useState<'all' | 'Meccan' | 'Medinan'>('all');
+  const [filterType, setFilterType] = useState<'all' | 'Meccan' | 'Medinan' | 'favorites'>('all');
+  const [onlyFavoriteAyahs, setOnlyFavoriteAyahs] = useState<boolean>(false);
   
   // Audio state
   const [isPlaying, setIsPlaying] = useState(false);
@@ -100,13 +104,18 @@ export default function Coran({ lang, preselectedReciterId }: CoranProps) {
   const playPromiseRef = useRef<Promise<void> | null>(null);
   const lastErrorTimestampRef = useRef<number>(0);
 
-  // Deep-link handle for preselected reciter
+  // Deep-link handle for preselected reciter and surah
   useEffect(() => {
     if (preselectedReciterId) {
       const match = reciters.find(r => r.id === preselectedReciterId);
       if (match) setSelectedReciter(match);
     }
-  }, [preselectedReciterId, reciters]);
+    if (preselectedSurahNumber) {
+      const num = typeof preselectedSurahNumber === 'string' ? parseInt(preselectedSurahNumber, 10) : preselectedSurahNumber;
+      const sMatch = surahs.find(s => s.number === num);
+      if (sMatch) setSelectedSurah(sMatch);
+    }
+  }, [preselectedReciterId, preselectedSurahNumber, reciters]);
 
   // Load verses when chosen Surah or selectedReciter changes
   useEffect(() => {
@@ -503,12 +512,19 @@ export default function Coran({ lang, preselectedReciterId }: CoranProps) {
                           s.frenchName.toLowerCase().includes(searchTerm.toLowerCase()) ||
                           s.name.includes(searchTerm) ||
                           s.number.toString() === searchTerm;
-    const matchesCategory = filterType === 'all' || s.revelationType === filterType;
+    const matchesCategory = filterType === 'all'
+      ? true
+      : filterType === 'favorites'
+        ? quranAudio.isFavoriteSurah(s.number)
+        : s.revelationType === filterType;
     return matchesSearch && matchesCategory;
   });
 
   // Filter verses of active surah
   const filteredVerses = versesList.filter(ayah => {
+    if (onlyFavoriteAyahs && !quranAudio.isFavoriteAyah(selectedSurah.number, ayah.number)) {
+      return false;
+    }
     if (!ayahSearchTerm.trim()) return true;
     const term = ayahSearchTerm.toLowerCase();
     return (
@@ -626,10 +642,10 @@ export default function Coran({ lang, preselectedReciterId }: CoranProps) {
             </div>
 
             {/* Filter tags */}
-            <div className={`flex gap-1.5 text-[11px] font-bold ${isAr ? 'flex-row-reverse' : ''}`}>
+            <div className={`flex flex-wrap gap-1.5 text-[11px] font-bold ${isAr ? 'flex-row-reverse' : ''}`}>
               <button
                 onClick={() => setFilterType('all')}
-                className={`px-3 py-1.5 rounded-lg transition-colors ${
+                className={`px-2.5 py-1.5 rounded-lg transition-colors cursor-pointer ${
                   filterType === 'all' ? 'bg-gold-main text-ink' : 'bg-cream-main text-text-sec hover:bg-cream-sec'
                 }`}
               >
@@ -637,7 +653,7 @@ export default function Coran({ lang, preselectedReciterId }: CoranProps) {
               </button>
               <button
                 onClick={() => setFilterType('Meccan')}
-                className={`px-3 py-1.5 rounded-lg transition-colors ${
+                className={`px-2.5 py-1.5 rounded-lg transition-colors cursor-pointer ${
                   filterType === 'Meccan' ? 'bg-gold-main text-ink' : 'bg-cream-main text-text-sec hover:bg-cream-sec'
                 }`}
               >
@@ -645,11 +661,24 @@ export default function Coran({ lang, preselectedReciterId }: CoranProps) {
               </button>
               <button
                 onClick={() => setFilterType('Medinan')}
-                className={`px-3 py-1.5 rounded-lg transition-colors ${
+                className={`px-2.5 py-1.5 rounded-lg transition-colors cursor-pointer ${
                   filterType === 'Medinan' ? 'bg-gold-main text-ink' : 'bg-cream-main text-text-sec hover:bg-cream-sec'
                 }`}
               >
                 {t.revelationMedinan}
+              </button>
+              <button
+                onClick={() => setFilterType('favorites')}
+                className={`px-2.5 py-1.5 rounded-lg transition-colors flex items-center gap-1 cursor-pointer ${
+                  filterType === 'favorites' ? 'bg-gold-main text-ink' : 'bg-cream-main text-text-sec hover:bg-cream-sec'
+                }`}
+                title={lang === 'ar' ? 'السور المفضلة' : 'Sourates favorites'}
+              >
+                <Heart className={`w-3 h-3 ${filterType === 'favorites' ? 'fill-current text-ink' : 'text-red-500 fill-red-500'}`} />
+                <span>{lang === 'ar' ? 'المفضلة' : 'Favoris'}</span>
+                {quranAudio.favoriteSurahs.length > 0 && (
+                  <span className="text-[10px] opacity-80 font-mono">({quranAudio.favoriteSurahs.length})</span>
+                )}
               </button>
             </div>
           </div>
@@ -663,19 +692,27 @@ export default function Coran({ lang, preselectedReciterId }: CoranProps) {
             ) : (
               filteredSurahs.map((surah) => {
                 const isSelected = selectedSurah.number === surah.number;
+                const isCurrentlyPlayingThisSurah = quranAudio.isPlaying && quranAudio.currentSurah.number === surah.number;
                 return (
                   <div
                     key={surah.number}
-                    onClick={() => setSelectedSurah(surah)}
+                    onClick={() => {
+                      setSelectedSurah(surah);
+                      if (quranAudio.isPlaying || quranAudio.isPlayerVisible) {
+                        quranAudio.playSurah(surah, selectedReciter);
+                      }
+                    }}
                     className={`p-3.5 flex items-center justify-between cursor-pointer transition-colors ${
                       isSelected ? 'bg-emerald-main/10 border-l-4 border-gold-main' : 'hover:bg-cream-main'
                     }`}
                   >
                     <div className="flex items-center gap-3">
-                      <div className={`w-7 h-7 rounded-lg text-xs font-bold font-mono flex items-center justify-center ${
-                        isSelected ? 'bg-gold-main text-ink' : 'bg-cream-main text-text-sec'
+                      <div className={`w-7 h-7 rounded-lg text-xs font-bold font-mono flex items-center justify-center transition-all ${
+                        isCurrentlyPlayingThisSurah
+                          ? 'bg-emerald-main text-white animate-pulse'
+                          : isSelected ? 'bg-gold-main text-ink' : 'bg-cream-main text-text-sec'
                       }`}>
-                        {surah.number}
+                        {isCurrentlyPlayingThisSurah ? <Music className="w-3.5 h-3.5" /> : surah.number}
                       </div>
                       <div>
                         <p className={`text-sm font-serif font-bold ${isSelected ? 'text-emerald-main' : 'text-ink'}`}>
@@ -687,13 +724,36 @@ export default function Coran({ lang, preselectedReciterId }: CoranProps) {
                       </div>
                     </div>
 
-                    <div className="text-right font-amiri">
-                      <p className={`text-base font-bold ${isSelected ? 'text-gold-dark' : 'text-emerald-main'}`} dir="rtl">
-                        {surah.name}
-                      </p>
-                      <p className="text-[10px] text-gray-400 font-sans">
-                        {surah.numberOfAyahs} {lang === 'ar' ? 'آية' : 'Ayahs'}
-                      </p>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          quranAudio.toggleFavoriteSurah(surah.number);
+                        }}
+                        className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+                          quranAudio.isFavoriteSurah(surah.number)
+                            ? 'text-red-500 hover:bg-red-50'
+                            : 'text-stone-300 hover:text-red-400 hover:bg-stone-50 opacity-60 hover:opacity-100'
+                        }`}
+                        title={
+                          quranAudio.isFavoriteSurah(surah.number)
+                            ? (lang === 'ar' ? 'إزالة السورة من المفضلة' : 'Retirer des favoris')
+                            : (lang === 'ar' ? 'إضافة للمفضلة' : 'Ajouter aux favoris')
+                        }
+                        aria-label="Favori sourate"
+                      >
+                        <Heart className={`w-3.5 h-3.5 ${quranAudio.isFavoriteSurah(surah.number) ? 'fill-current' : ''}`} />
+                      </button>
+
+                      <div className="text-right font-amiri">
+                        <p className={`text-base font-bold ${isSelected ? 'text-gold-dark' : 'text-emerald-main'}`} dir="rtl">
+                          {surah.name}
+                        </p>
+                        <p className="text-[10px] text-gray-400 font-sans">
+                          {surah.numberOfAyahs} {lang === 'ar' ? 'آية' : 'Ayahs'}
+                        </p>
+                      </div>
                     </div>
                   </div>
                 );
@@ -723,14 +783,66 @@ export default function Coran({ lang, preselectedReciterId }: CoranProps) {
                   </h2>
                 </div>
 
-                {/* Big Arabic Calligraphy Banner */}
-                <div className="text-center sm:text-right" dir="rtl">
-                  <p className="font-amiri text-3xl text-gold-dark font-bold leading-tight">
-                    سُورَةُ {selectedSurah.name}
-                  </p>
-                  <p className="text-xs text-text-sec mt-1">
-                    {lang === 'fr' ? `Chapitre ${selectedSurah.number}` : `Chapter ${selectedSurah.number}`}
-                  </p>
+                {/* Big Arabic Calligraphy Banner & Quick Play CTA */}
+                <div className="flex flex-wrap items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (quranAudio.isPlaying && quranAudio.currentSurah.number === selectedSurah.number) {
+                        quranAudio.togglePlay();
+                      } else {
+                        if (audioRef.current) audioRef.current.pause();
+                        setIsPlaying(false);
+                        quranAudio.playSurah(selectedSurah, selectedReciter);
+                      }
+                    }}
+                    className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl font-bold text-xs shadow-md transition-all cursor-pointer active:scale-95 ${
+                      quranAudio.isPlaying && quranAudio.currentSurah.number === selectedSurah.number
+                        ? 'bg-emerald-main text-white shadow-emerald-900/20'
+                        : 'bg-gradient-to-r from-gold-main to-gold-light hover:from-gold-light hover:to-gold-main text-ink shadow-gold-main/20'
+                    }`}
+                    title={lang === 'ar' ? 'تشغيل في المشغل المستمر' : 'Écouter dans le lecteur persistant'}
+                  >
+                    {quranAudio.isPlaying && quranAudio.currentSurah.number === selectedSurah.number ? (
+                      <>
+                        <Pause className="w-4 h-4 fill-current" />
+                        <span>{lang === 'ar' ? 'إيقاف مؤقت' : 'Pause'}</span>
+                      </>
+                    ) : (
+                      <>
+                        <Play className="w-4 h-4 fill-current ml-0.5" />
+                        <span>{lang === 'ar' ? 'تشغيل السورة كاملة' : 'Écouter la sourate'}</span>
+                      </>
+                    )}
+                  </button>
+
+                  {/* Favori Sourate Toggle Button */}
+                  <button
+                    type="button"
+                    onClick={() => quranAudio.toggleFavoriteSurah(selectedSurah.number)}
+                    className={`p-2.5 rounded-2xl border transition-all cursor-pointer flex items-center justify-center ${
+                      quranAudio.isFavoriteSurah(selectedSurah.number)
+                        ? 'bg-red-50 text-red-500 border-red-200 shadow-sm'
+                        : 'bg-white text-stone-400 border-gray-200 hover:text-red-500 hover:border-red-200'
+                    }`}
+                    title={
+                      quranAudio.isFavoriteSurah(selectedSurah.number)
+                        ? (lang === 'ar' ? 'إزالة من السور المفضلة' : 'Retirer des favoris')
+                        : (lang === 'ar' ? 'حفظ السورة في المفضلة' : 'Ajouter aux favoris')
+                    }
+                    aria-label="Favori sourate"
+                  >
+                    <Heart className={`w-4 h-4 transition-transform active:scale-125 ${quranAudio.isFavoriteSurah(selectedSurah.number) ? 'fill-current' : ''}`} />
+                  </button>
+
+                  <div className="text-center sm:text-right" dir="rtl">
+                    <p className="font-amiri text-3xl text-gold-dark font-bold leading-tight">
+                      سُورَةُ {selectedSurah.name}
+                    </p>
+                    <p className="text-xs text-text-sec mt-1">
+                      {lang === 'fr' ? `Chapitre ${selectedSurah.number}` : `Chapter ${selectedSurah.number}`}
+                    </p>
+                  </div>
                 </div>
               </div>
               
@@ -832,18 +944,22 @@ export default function Coran({ lang, preselectedReciterId }: CoranProps) {
                     <div className="inline-flex bg-white border border-gray-100 rounded-lg p-0.5 shadow-sm">
                       <button
                         onClick={() => {
+                          if (audioRef.current) audioRef.current.pause();
+                          setIsPlaying(false);
                           setAudioMode('surah');
                           setCurrentPlayingAyahIndex(null);
+                          quranAudio.playSurah(selectedSurah, selectedReciter);
                         }}
                         className={`px-3 py-1 rounded-md text-[11px] font-bold transition-all flex items-center gap-1 cursor-pointer ${
                           audioMode === 'surah' ? 'bg-emerald-main text-white shadow-sm' : 'text-text-sec hover:text-ink'
                         }`}
                       >
                         <BookOpen className="w-3 h-3" />
-                        {lang === 'fr' ? 'Toute la Sourate (Recommandé)' : lang === 'en' ? 'Full Surah (Recommended)' : 'السورة كاملة'}
+                        {lang === 'fr' ? 'Toute la Sourate (Lecteur persistant)' : lang === 'en' ? 'Full Surah (Persistent Player)' : 'السورة كاملة'}
                       </button>
                       <button
                         onClick={() => {
+                          quranAudio.pause();
                           setAudioMode('ayah');
                           if (currentPlayingAyahIndex === null) {
                             setCurrentPlayingAyahIndex(0);
@@ -870,30 +986,46 @@ export default function Coran({ lang, preselectedReciterId }: CoranProps) {
                   </div>
                 </div>
 
-                {/* Search in active surah */}
-                <div className="relative">
-                  <Search className="absolute left-3 top-2.5 w-3.5 h-3.5 text-gray-400" />
-                  <input
-                    type="text"
-                    placeholder={
-                      lang === 'fr' 
-                        ? "Rechercher un verset par mot-clé ou par numéro..." 
-                        : lang === 'en' 
-                          ? "Search ayah by keyword or verse number..." 
-                          : "البحث في آيات السورة الكريمة..."
-                    }
-                    value={ayahSearchTerm}
-                    onChange={(e) => setAyahSearchTerm(e.target.value)}
-                    className="w-full pl-9 pr-24 py-2 bg-white text-xs text-ink rounded-xl border border-gray-100 focus:outline-none focus:ring-1 focus:ring-gold-main placeholder-gray-400 font-sans shadow-inner"
-                  />
-                  {ayahSearchTerm && (
-                    <button 
-                      onClick={() => setAyahSearchTerm('')}
-                      className="absolute right-2 top-1.5 text-[10px] text-gray-400 hover:text-ink bg-gray-50 hover:bg-gray-100 px-2 py-1 rounded-lg border border-gray-100 font-sans transition-colors"
-                    >
-                      {lang === 'fr' ? 'Effacer' : 'Clear'}
-                    </button>
-                  )}
+                {/* Search and Favorite Filter in active surah */}
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                  <div className="relative flex-1">
+                    <Search className="absolute left-3 top-2.5 w-3.5 h-3.5 text-gray-400" />
+                    <input
+                      type="text"
+                      placeholder={
+                        lang === 'fr' 
+                          ? "Rechercher un verset par mot-clé ou par numéro..." 
+                          : lang === 'en' 
+                            ? "Search ayah by keyword or verse number..." 
+                            : "البحث في آيات السورة الكريمة..."
+                      }
+                      value={ayahSearchTerm}
+                      onChange={(e) => setAyahSearchTerm(e.target.value)}
+                      className="w-full pl-9 pr-24 py-2 bg-white text-xs text-ink rounded-xl border border-gray-100 focus:outline-none focus:ring-1 focus:ring-gold-main placeholder-gray-400 font-sans shadow-inner"
+                    />
+                    {ayahSearchTerm && (
+                      <button 
+                        onClick={() => setAyahSearchTerm('')}
+                        className="absolute right-2 top-1.5 text-[10px] text-gray-400 hover:text-ink bg-gray-50 hover:bg-gray-100 px-2 py-1 rounded-lg border border-gray-100 font-sans transition-colors cursor-pointer"
+                      >
+                        {lang === 'fr' ? 'Effacer' : 'Clear'}
+                      </button>
+                    )}
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => setOnlyFavoriteAyahs(!onlyFavoriteAyahs)}
+                    className={`px-3 py-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer shrink-0 border ${
+                      onlyFavoriteAyahs
+                        ? 'bg-red-500 text-white border-red-500 shadow-sm'
+                        : 'bg-white text-stone-600 border-gray-200 hover:text-red-500 hover:border-red-200'
+                    }`}
+                    title={onlyFavoriteAyahs ? (lang === 'ar' ? 'عرض كل الآيات' : 'Afficher tous les versets') : (lang === 'ar' ? 'تصفية الآيات المفضلة' : 'Filtrer les versets favoris')}
+                  >
+                    <Heart className={`w-3.5 h-3.5 ${onlyFavoriteAyahs ? 'fill-current text-white' : 'text-red-500 fill-red-500'}`} />
+                    <span>{onlyFavoriteAyahs ? (lang === 'ar' ? 'المفضلة فقط' : 'Favoris seulement') : (lang === 'ar' ? 'الآيات المفضلة' : 'Versets favoris')}</span>
+                  </button>
                 </div>
               </div>
 
@@ -917,9 +1049,15 @@ export default function Coran({ lang, preselectedReciterId }: CoranProps) {
                   </div>
                 ) : filteredVerses.length === 0 ? (
                   <div className="py-20 text-center text-sm text-text-sec bg-cream-main/20 rounded-2xl p-6 border border-dashed border-cream-sec">
-                    {lang === 'fr' 
-                      ? "Aucun verset ne correspond à votre recherche dans cette sourate." 
-                      : "No ayah matching your search inside this surah."}
+                    {onlyFavoriteAyahs
+                      ? (lang === 'fr' 
+                          ? "Aucun verset favori enregistré dans cette sourate. Cliquez sur le cœur d'un verset pour l'ajouter !" 
+                          : lang === 'en' 
+                            ? "No favorite ayahs in this surah yet. Click the heart next to an ayah to save it!" 
+                            : "لا توجد آيات مفضلة في هذه السورة بعد. انقر على القلب بجانب أي آية لإضافتها!")
+                      : (lang === 'fr' 
+                          ? "Aucun verset ne correspond à votre recherche dans cette sourate." 
+                          : "No ayah matching your search inside this surah.")}
                   </div>
                 ) : (
                   filteredVerses.map((ayah) => {
@@ -928,6 +1066,7 @@ export default function Coran({ lang, preselectedReciterId }: CoranProps) {
 
                     const handlePlayAyah = () => {
                       if (realIndex !== -1) {
+                        quranAudio.pause();
                         setAudioMode('ayah');
                         setCurrentPlayingAyahIndex(realIndex);
                         setIsPlaying(true);
@@ -954,21 +1093,51 @@ export default function Coran({ lang, preselectedReciterId }: CoranProps) {
                         {/* Header of Ayah Card */}
                         <div className="flex justify-between items-start gap-4 mb-3">
                           {/* Play/Pause Button on the Left */}
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-1.5">
                             <button
                               onClick={isCurrentPlaying ? handlePauseAyah : handlePlayAyah}
-                              className={`w-7 h-7 rounded-full flex items-center justify-center transition-all ${
+                              className={`w-7 h-7 rounded-full flex items-center justify-center transition-all cursor-pointer ${
                                 isCurrentPlaying 
                                   ? 'bg-emerald-main text-white shadow-md ring-2 ring-emerald-med/20' 
                                   : 'bg-cream-main text-text-sec hover:bg-gold-main hover:text-ink'
                               }`}
-                              title={isCurrentPlaying ? "Pause" : "Reciter ce verset"}
+                              title={isCurrentPlaying ? (lang === 'ar' ? 'إيقاف مؤقت' : 'Pause') : (lang === 'ar' ? 'استماع للآية' : 'Réciter ce verset')}
                             >
                               {isCurrentPlaying ? (
                                 <Pause className="w-3.5 h-3.5 fill-current" />
                               ) : (
                                 <Play className="w-3.5 h-3.5 fill-current pl-0.5" />
                               )}
+                            </button>
+
+                            {/* Bouton Favori Verset */}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                quranAudio.toggleFavoriteAyah({
+                                  surahNumber: selectedSurah.number,
+                                  ayahNumber: ayah.number,
+                                  surahName: selectedSurah.name,
+                                  text: ayah.text,
+                                  translationFr: ayah.translationFr,
+                                  translationEn: ayah.translationEn
+                                });
+                              }}
+                              className={`w-7 h-7 rounded-full flex items-center justify-center transition-all cursor-pointer ${
+                                quranAudio.isFavoriteAyah(selectedSurah.number, ayah.number)
+                                  ? 'bg-red-50 text-red-500 ring-1 ring-red-200'
+                                  : 'bg-cream-main text-gray-400 hover:text-red-500 hover:bg-red-50/50'
+                              }`}
+                              title={
+                                quranAudio.isFavoriteAyah(selectedSurah.number, ayah.number)
+                                  ? (lang === 'ar' ? 'إزالة الآية من المفضلة' : 'Retirer le verset des favoris')
+                                  : (lang === 'ar' ? 'حفظ الآية في المفضلة' : 'Ajouter le verset aux favoris')
+                              }
+                              aria-label="Favori verset"
+                            >
+                              <Heart className={`w-3.5 h-3.5 transition-transform active:scale-125 ${
+                                quranAudio.isFavoriteAyah(selectedSurah.number, ayah.number) ? 'fill-current text-red-500' : ''
+                              }`} />
                             </button>
                             
                             {isCurrentPlaying && (
@@ -1029,14 +1198,15 @@ export default function Coran({ lang, preselectedReciterId }: CoranProps) {
 
       </section>
 
-      {/* AUDIO BAR (STICKY AT BOTTOM) */}
+      {/* LOCAL AUDIO BAR (STICKY AT BOTTOM) - only shown in Ayah mode to prevent duplicate with persistent player */}
       <AnimatePresence>
-        <motion.div
-          initial={{ y: 100 }}
-          animate={{ y: 0 }}
-          exit={{ y: 100 }}
-          className="fixed bottom-0 left-0 right-0 bg-ink border-t border-gold-main/20 text-white z-50 py-3.5 px-4 shadow-xl backdrop-blur-lg"
-        >
+        {audioMode === 'ayah' && (
+          <motion.div
+            initial={{ y: 100 }}
+            animate={{ y: 0 }}
+            exit={{ y: 100 }}
+            className="fixed bottom-0 left-0 right-0 bg-ink border-t border-gold-main/20 text-white z-50 py-3.5 px-4 shadow-xl backdrop-blur-lg"
+          >
           {audioNotice && (
             <div className="max-w-7xl mx-auto mb-2 text-center">
               <span className="inline-block px-3 py-1 bg-gold-main/20 text-gold-light border border-gold-main/30 rounded-full text-xs font-medium animate-pulse">
@@ -1162,6 +1332,7 @@ export default function Coran({ lang, preselectedReciterId }: CoranProps) {
 
           </div>
         </motion.div>
+        )}
       </AnimatePresence>
 
     </div>

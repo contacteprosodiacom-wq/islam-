@@ -1,21 +1,49 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { BookOpen, Award, Download, ShoppingBag, Eye, RefreshCw, ScrollText, CheckCircle } from 'lucide-react';
+import { BookOpen, Award, Download, ShoppingBag, RefreshCw, ScrollText, CheckCircle, AlertTriangle } from 'lucide-react';
 import { Language, Ebook } from '../types';
 import { translations } from '../data/translations';
 import { ebooks } from '../data/ebooks';
+import SasPayModal from '../components/SasPayModal';
+import { PublicSasPayOrder, deliverSasPayOrder } from '../lib/saspay-api';
 
 interface EbooksProps {
   lang: Language;
+  resumeOrderId?: string | null;
 }
 
-export default function Ebooks({ lang }: EbooksProps) {
+function triggerFileDownload(fileName: string, content: string) {
+  const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = fileName;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+export default function Ebooks({ lang, resumeOrderId }: EbooksProps) {
   const t = translations[lang];
   const isAr = lang === 'ar';
 
   const [activeFilter, setActiveFilter] = useState<'all' | 'free' | 'paid' | 'coran' | 'fiqh' | 'histoire' | 'spiritualite'>('all');
   const [downloadingBookId, setDownloadingBookId] = useState<string | null>(null);
   const [downloadSuccessLogo, setDownloadSuccessLogo] = useState<string | null>(null);
+  const [deliveryError, setDeliveryError] = useState<string | null>(null);
+
+  const [selectedPaidBook, setSelectedPaidBook] = useState<Ebook | null>(null);
+  const [payModalOpen, setPayModalOpen] = useState(false);
+  const [activeResumeOrderId, setActiveResumeOrderId] = useState<string | null>(resumeOrderId || null);
+
+  useEffect(() => {
+    if (resumeOrderId) {
+      setSelectedPaidBook(ebooks[0]);
+      setActiveResumeOrderId(resumeOrderId);
+      setPayModalOpen(true);
+    }
+  }, [resumeOrderId]);
 
   // Filters logic
   const filteredEbooks = ebooks.filter(eb => {
@@ -26,14 +54,52 @@ export default function Ebooks({ lang }: EbooksProps) {
   });
 
   const handleDownload = (book: Ebook) => {
+    setDeliveryError(null);
+    if (!book.isFree) {
+      setSelectedPaidBook(book);
+      setActiveResumeOrderId(null);
+      setPayModalOpen(true);
+      return;
+    }
+
     setDownloadingBookId(book.id);
+    const freeContent = [
+      'ISLAM AVEC ABOUBAKAR — EDITION GRATUITE',
+      '==============================================================',
+      `Titre : ${book.title[lang]}`,
+      `Auteur : ${book.author}`,
+      '',
+      book.description[lang],
+      '',
+      'Qu Allah vous accorde une science utile.',
+    ].join('\n');
+
     setTimeout(() => {
+      triggerFileDownload(`${book.id}.txt`, freeContent);
       setDownloadingBookId(null);
       setDownloadSuccessLogo(book.title[lang]);
       setTimeout(() => {
         setDownloadSuccessLogo(null);
-      }, 5000);
-    }, 1800);
+      }, 6000);
+    }, 600);
+  };
+
+  const handleSasPaySuccess = async ({ order }: { order: PublicSasPayOrder }) => {
+    setDeliveryError(null);
+    try {
+      const delivery = await deliverSasPayOrder(order.orderId);
+      triggerFileDownload(delivery.fileName, delivery.content);
+      setDownloadSuccessLogo(order.itemTitle);
+      setTimeout(() => {
+        setDownloadSuccessLogo(null);
+      }, 7000);
+    } catch (err) {
+      setDeliveryError(
+        err instanceof Error
+          ? err.message
+          : 'Impossible de finaliser la livraison unique de cet ouvrage.',
+      );
+    }
   };
 
   const categoriesFilters = [
@@ -66,6 +132,16 @@ export default function Ebooks({ lang }: EbooksProps) {
           </p>
         </div>
       </section>
+
+      {/* DELIVERY ERROR BANNER */}
+      {deliveryError && (
+        <div className="max-w-xl mx-auto my-4 px-4">
+          <div className="p-4 rounded-2xl bg-red-50 border border-red-200 text-red-700 text-xs flex items-center gap-2.5">
+            <AlertTriangle className="w-4 h-4 shrink-0" />
+            <span>{deliveryError}</span>
+          </div>
+        </div>
+      )}
 
       {/* SUCCESS TOAST */}
       <AnimatePresence>
@@ -251,6 +327,23 @@ export default function Ebooks({ lang }: EbooksProps) {
           })}
         </div>
       </section>
+
+      {selectedPaidBook && (
+        <SasPayModal
+          isOpen={payModalOpen}
+          onClose={() => {
+            setPayModalOpen(false);
+            setActiveResumeOrderId(null);
+          }}
+          lang={lang}
+          intentType="ebook"
+          itemId={selectedPaidBook.id}
+          itemTitle={selectedPaidBook.title[lang]}
+          baseAmountEur={selectedPaidBook.price || 10}
+          resumeOrderId={activeResumeOrderId}
+          onPaymentSuccess={handleSasPaySuccess}
+        />
+      )}
 
     </div>
   );

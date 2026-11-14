@@ -1,6 +1,6 @@
 export type Language = 'fr' | 'en' | 'ar';
 
-export type Route = 'home' | 'coran' | 'hadiths' | 'prayers' | 'prophets' | 'islam' | 'medias' | 'dons' | 'ebooks' | 'blog' | 'videos' | 'quiz' | 'contact' | 'about' | 'admin';
+export type Route = 'home' | 'coran' | 'hadiths' | 'prayers' | 'prophets' | 'islam' | 'medias' | 'dons' | 'ebooks' | 'blog' | 'videos' | 'quiz' | 'contact' | 'about' | 'admin' | 'zakat';
 
 export interface Donor {
   id: string;

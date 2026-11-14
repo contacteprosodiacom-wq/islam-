@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Clock, Navigation, MapPin, Compass, RotateCcw, Volume2, VolumeX, CheckCircle, Info, Heart, ChevronRight, HelpCircle } from 'lucide-react';
+import { Clock, Navigation, MapPin, Compass, RotateCcw, Volume2, VolumeX, CheckCircle, Info, Heart, ChevronRight, HelpCircle, BellRing, Bell } from 'lucide-react';
 import { Language } from '../types';
+import PrayerNotificationSettings from '../components/PrayerNotificationSettings';
 
 interface PrayersProps {
   lang: Language;
@@ -18,7 +19,7 @@ const citiesData: Record<string, { lat: number; lng: number; timezone: number; c
 };
 
 export default function Prayers({ lang }: PrayersProps) {
-  const [activeTab, setActiveTab] = useState<'times' | 'guide' | 'adhan' | 'qibla' | 'dhikr'>('times');
+  const [activeTab, setActiveTab] = useState<'times' | 'guide' | 'adhan' | 'qibla' | 'dhikr' | 'notifications'>('times');
   const [selectedCity, setSelectedCity] = useState<string>('paris');
   const [calcMethod, setCalcMethod] = useState<'uoif' | 'mwl' | 'egypt'>('mwl');
   const [currentTime, setCurrentTime] = useState<Date>(new Date());
@@ -203,6 +204,7 @@ export default function Prayers({ lang }: PrayersProps) {
       title: "Horaires de Prières & Pratiques",
       subtitle: "Gérez vos prières quotidiennes, apprenez la Salah pas à pas, écoutez l'Adhan, trouvez la Qibla et faites du Dhikr.",
       tabTimes: "Horaires",
+      tabNotifications: "Rappels & Alertes",
       tabGuide: "Guide de Prière",
       tabAdhan: "Adhan & Iqama",
       tabQibla: "Boussole Qibla",
@@ -235,6 +237,7 @@ export default function Prayers({ lang }: PrayersProps) {
       title: "Prayer Times & Daily Practices",
       subtitle: "Manage your daily prayers, learn Salah step-by-step, listen to Adhan, find the Qibla, and practice Dhikr.",
       tabTimes: "Schedules",
+      tabNotifications: "Reminders & Alerts",
       tabGuide: "Salah Guide",
       tabAdhan: "Adhan & Iqama",
       tabQibla: "Qibla Compass",
@@ -267,6 +270,7 @@ export default function Prayers({ lang }: PrayersProps) {
       title: "مواقيت الصلاة والعبادات",
       subtitle: "تابع مواقيت الصلاة اليومية، وتعلم كيفية الصلاة والوضوء خطوة بخطوة، واستمع للأذان واستخدم المسبحة الإلكترونية.",
       tabTimes: "المواقيت",
+      tabNotifications: "تنبيهات الأذان",
       tabGuide: "صفة الصلاة",
       tabAdhan: "الأذان والإقامة",
       tabQibla: "قبلة الصلاة",
@@ -338,6 +342,7 @@ export default function Prayers({ lang }: PrayersProps) {
           <div className="flex flex-wrap gap-1 justify-center">
             {[
               { id: 'times', label: t.tabTimes },
+              { id: 'notifications', label: t.tabNotifications, hasIcon: true },
               { id: 'guide', label: t.tabGuide },
               { id: 'adhan', label: t.tabAdhan },
               { id: 'qibla', label: t.tabQibla },
@@ -346,13 +351,14 @@ export default function Prayers({ lang }: PrayersProps) {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id as any)}
-                className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+                className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
                   activeTab === tab.id
                     ? 'bg-emerald-main text-white shadow'
                     : 'text-zinc-400 hover:text-white hover:bg-zinc-800/60'
                 }`}
               >
-                {tab.label}
+                {tab.hasIcon && <BellRing className="w-3.5 h-3.5 text-gold-main" />}
+                <span>{tab.label}</span>
               </button>
             ))}
           </div>
@@ -453,9 +459,34 @@ export default function Prayers({ lang }: PrayersProps) {
                     );
                   })}
                 </div>
+
+                {/* Embedded Prayer Notification Settings in Schedules view */}
+                <div className="pt-2">
+                  <PrayerNotificationSettings
+                    lang={lang}
+                    selectedCity={selectedCity}
+                    calcMethod={calcMethod}
+                  />
+                </div>
               </div>
 
             </div>
+          )}
+
+          {/* TAB: DEDICATED NOTIFICATIONS SETTINGS */}
+          {activeTab === 'notifications' && (
+            <motion.div
+              initial={{ opacity: 0, y: 15 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4 }}
+              className="max-w-4xl mx-auto"
+            >
+              <PrayerNotificationSettings
+                lang={lang}
+                selectedCity={selectedCity}
+                calcMethod={calcMethod}
+              />
+            </motion.div>
           )}
 
           {/* TAB 2: PRAYER GUIDE */}

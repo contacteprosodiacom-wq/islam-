@@ -1,16 +1,19 @@
-import { useState, FormEvent } from 'react';
+import { useState, useEffect, FormEvent } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Heart, Droplet, Users, ShieldCheck, Check, ArrowRight, HelpCircle, ChevronDown } from 'lucide-react';
+import { Heart, Droplet, Users, ShieldCheck, ChevronDown, AlertTriangle } from 'lucide-react';
 import { Language } from '../types';
 import { translations } from '../data/translations';
 import { useContentStore } from '../lib/content-store';
+import SasPayModal from '../components/SasPayModal';
+import { PublicSasPayOrder } from '../lib/saspay-api';
 
 interface DonsProps {
   lang: Language;
   onDonateSubmit: (amount: number) => void;
+  resumeOrderId?: string | null;
 }
 
-export default function Dons({ lang, onDonateSubmit }: DonsProps) {
+export default function Dons({ lang, onDonateSubmit, resumeOrderId }: DonsProps) {
   const { donsCampaign, addDonor } = useContentStore();
   const t = translations[lang];
   const isAr = lang === 'ar';
@@ -20,11 +23,26 @@ export default function Dons({ lang, onDonateSubmit }: DonsProps) {
   const [customAmount, setCustomAmount] = useState<string>('');
   const [activeFaq, setActiveFaq] = useState<number | null>(0);
   const [thanksMessage, setThanksMessage] = useState(false);
+  const [confirmedAmountEur, setConfirmedAmountEur] = useState<string>('20');
+  const [confirmedOrderRef, setConfirmedOrderRef] = useState<string>('');
+  const [formError, setFormError] = useState<string | null>(null);
+
+  // SasPay checkout modal state
+  const [payModalOpen, setPayModalOpen] = useState(false);
+  const [pendingAmountEur, setPendingAmountEur] = useState<number>(20);
+  const [activeResumeOrderId, setActiveResumeOrderId] = useState<string | null>(resumeOrderId || null);
 
   // New Donor Info State
   const [donorName, setDonorName] = useState('');
   const [donorEmail, setDonorEmail] = useState('');
   const [donorProject, setDonorProject] = useState('Puits Mali #3');
+
+  useEffect(() => {
+    if (resumeOrderId) {
+      setActiveResumeOrderId(resumeOrderId);
+      setPayModalOpen(true);
+    }
+  }, [resumeOrderId]);
 
   // Constants (Synced dynamically from Store!)
   const goalTarget = donsCampaign.target;
@@ -36,6 +54,7 @@ export default function Dons({ lang, onDonateSubmit }: DonsProps) {
 
   const handleDonate = (e: FormEvent) => {
     e.preventDefault();
+    setFormError(null);
     let finalAmount = 0;
     if (selectedPreset === 'other') {
       finalAmount = parseFloat(customAmount);
@@ -44,25 +63,45 @@ export default function Dons({ lang, onDonateSubmit }: DonsProps) {
     }
 
     if (!finalAmount || isNaN(finalAmount) || finalAmount <= 0) {
-      alert(lang === 'fr' ? 'Veuillez saisir un montant valide.' : lang === 'en' ? 'Enter a valid amount.' : 'يرجى إدخال مبلغ تبرع صالح.');
+      setFormError(
+        lang === 'fr'
+          ? 'Veuillez saisir un montant valide.'
+          : lang === 'en'
+            ? 'Enter a valid amount.'
+            : 'يرجى إدخال مبلغ تبرع صالح.',
+      );
       return;
     }
 
-    // Call Store action to append donor log and update stats
-    const nameInput = donorName.trim() || (lang === 'fr' ? 'Bienfaiteur Anonyme' : lang === 'en' ? 'Anonymous Donor' : 'فاعل خير');
-    const emailInput = donorEmail.trim() || 'anonyme@example.com';
-    
-    addDonor(nameInput, emailInput, finalAmount, donorProject);
-    onDonateSubmit(finalAmount);
+    setPendingAmountEur(finalAmount);
+    setActiveResumeOrderId(null);
+    setPayModalOpen(true);
+  };
 
+  const handleSasPaySuccess = ({
+    order,
+    shouldRecordDonor,
+  }: {
+    order: PublicSasPayOrder;
+    shouldRecordDonor: boolean;
+  }) => {
+    const nameInput =
+      order.customerName ||
+      donorName.trim() ||
+      (lang === 'fr' ? 'Bienfaiteur Anonyme' : lang === 'en' ? 'Anonymous Donor' : 'فاعل خير');
+    const emailInput = donorEmail.trim() || 'donateur@islamavecaboubakar.com';
+    const recordedEur = pendingAmountEur || 20;
+
+    if (shouldRecordDonor) {
+      addDonor(nameInput, emailInput, recordedEur, order.project || donorProject);
+      onDonateSubmit(recordedEur);
+    }
+
+    setConfirmedAmountEur(order.charged ? `${order.charged} ${order.currency}` : `${recordedEur} €`);
+    setConfirmedOrderRef(order.reference || order.orderId);
     setThanksMessage(true);
-    // Clear inputs
     setDonorName('');
     setDonorEmail('');
-    
-    setTimeout(() => {
-      setThanksMessage(false);
-    }, 5000);
   };
 
   const testimonials = [
@@ -158,7 +197,7 @@ export default function Dons({ lang, onDonateSubmit }: DonsProps) {
           </div>
 
           {/* Donation Form */}
-          <form onSubmit={handleDonate} className="space-y-6">
+          <form onSubmit={handleDonate} noValidate className="space-y-6">
             <div className="space-y-3">
               <p className="text-sm font-serif font-semibold text-ink">
                 {t.donsPresetLabel}
@@ -268,11 +307,19 @@ export default function Dons({ lang, onDonateSubmit }: DonsProps) {
               </select>
             </div>
 
+            {/* Inline form validation message */}
+            {formError && (
+              <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4 shrink-0" />
+                <span>{formError}</span>
+              </div>
+            )}
+
             {/* Submit Don button */}
             <div className="space-y-4 pt-2">
               <button
                 type="submit"
-                className="w-full py-4 bg-gold-main hover:bg-gold-light active:bg-gold-dark text-ink font-serif font-bold rounded-2xl shadow-lg transition-transform hover:scale-[1.01] flex items-center justify-center gap-2"
+                className="w-full py-4 bg-gold-main hover:bg-gold-light active:bg-gold-dark text-ink font-serif font-bold rounded-2xl shadow-lg transition-transform hover:scale-[1.01] flex items-center justify-center gap-2 cursor-pointer"
               >
                 <Heart className="w-5 h-5 text-red-urge fill-red-urge" />
                 {t.donsCtaButton}
@@ -286,7 +333,7 @@ export default function Dons({ lang, onDonateSubmit }: DonsProps) {
 
           </form>
 
-          {/* Thanks trigger notification */}
+          {/* Thanks trigger notification (ONLY shown after SasPay SUCCESS) */}
           <AnimatePresence>
             {thanksMessage && (
               <motion.div
@@ -300,10 +347,10 @@ export default function Dons({ lang, onDonateSubmit }: DonsProps) {
                 </div>
                 <div>
                   <h4 className="text-sm font-serif font-bold text-emerald-main">
-                    Macha'Allah ! Intention Généreuse Enregistrée
+                    Macha'Allah ! Don Vérifié SasPay Enregistré
                   </h4>
                   <p className="text-xs text-text-sec mt-1">
-                    {t.donateSuccessToast.replace('{amount}', selectedPreset === 'other' ? customAmount : selectedPreset.toString())}
+                    {confirmedAmountEur} • Réf. {confirmedOrderRef}
                   </p>
                 </div>
               </motion.div>
@@ -433,6 +480,25 @@ export default function Dons({ lang, onDonateSubmit }: DonsProps) {
           })}
         </div>
       </section>
+
+      {/* SasPay Checkout & Softpay Verification Modal */}
+      <SasPayModal
+        isOpen={payModalOpen}
+        onClose={() => {
+          setPayModalOpen(false);
+          setActiveResumeOrderId(null);
+        }}
+        lang={lang}
+        intentType="donation"
+        itemId={donorProject.toLowerCase().replace(/[^a-z0-9]+/g, '-')}
+        itemTitle={`Don Sadaqa — ${donorProject}`}
+        project={donorProject}
+        baseAmountEur={pendingAmountEur}
+        initialName={donorName}
+        initialEmail={donorEmail}
+        resumeOrderId={activeResumeOrderId}
+        onPaymentSuccess={handleSasPaySuccess}
+      />
 
     </div>
   );

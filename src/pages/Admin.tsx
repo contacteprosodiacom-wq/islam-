@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { 
   LayoutDashboard, FileText, ShieldAlert, Lock, LogOut, 
   Menu, X, Sun, Moon, ArrowLeft, Clock, CheckCircle2, 
-  AlertTriangle, BookOpen, Heart, Mail, Settings, Users, Sparkles 
+  AlertTriangle, BookOpen, Heart, Mail, Settings, Wallet 
 } from 'lucide-react';
 import { AdminAuthProvider, useAdminAuth } from '../lib/admin-auth-context';
 import AdminLogin from '../components/admin/AdminLogin';
@@ -12,6 +12,7 @@ import DashboardView from '../components/admin/DashboardView';
 import ArticlesManager from '../components/admin/ArticlesManager';
 import AuditLogViewer from '../components/admin/AuditLogViewer';
 import SecuritySettings from '../components/admin/SecuritySettings';
+import SasPayAdminPanel from '../components/admin/SasPayAdminPanel';
 import { AuditLog, Language } from '../types';
 import { db } from '../lib/firebase';
 import { collection, query, orderBy, limit, onSnapshot, getDocs } from 'firebase/firestore';
@@ -32,7 +33,7 @@ function AdminContent({ lang }: AdminProps) {
     isEmailVerified
   } = useAdminAuth();
 
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'articles' | 'audit' | 'security' | 'hadiths' | 'donations' | 'messages' | 'settings'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'articles' | 'audit' | 'security' | 'saspay' | 'hadiths' | 'donations' | 'messages' | 'settings'>('dashboard');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
@@ -349,6 +350,19 @@ function AdminContent({ lang }: AdminProps) {
                   <Lock className="w-4 h-4 shrink-0" />
                   <span>Sécurité & Sessions</span>
                 </button>
+
+                <button
+                  type="button"
+                  onClick={() => { setActiveTab('saspay'); setMobileMenuOpen(false); }}
+                  className={`w-full py-2.5 px-3 rounded-xl text-xs font-medium flex items-center gap-2.5 transition-colors ${
+                    activeTab === 'saspay'
+                      ? 'bg-gold-main text-ink font-semibold shadow-sm'
+                      : 'text-stone-400 hover:text-white hover:bg-white/5'
+                  }`}
+                >
+                  <Wallet className="w-4 h-4 shrink-0" />
+                  <span>Paiements SasPay</span>
+                </button>
               </nav>
             </div>
 
@@ -450,6 +464,10 @@ function AdminContent({ lang }: AdminProps) {
 
             {activeTab === 'security' && (
               <SecuritySettings onNotify={showToast} />
+            )}
+
+            {activeTab === 'saspay' && (
+              <SasPayAdminPanel onNotify={showToast} />
             )}
           </div>
         </main>
